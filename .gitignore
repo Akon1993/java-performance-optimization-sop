@@ -1,0 +1,72 @@
+# Maven构建输出
+target/
+*.jar
+*.war
+*.ear
+
+# IDE配置文件
+.idea/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+.vscode/
+.factorypath
+
+# 编译输出
+*.class
+bin/
+out/
+build/
+
+# 日志文件
+*.log
+logs/
+
+# 依赖目录
+lib/
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# JMH基准测试输出
+jmh-output/
+
+# 测试报告
+test-output/
+surefire-reports/
+
+# 本地配置文件
+application-local.properties
+application-local.yml
+
+# 敏感信息（切勿提交到Git）
+*.jks
+*.keystore
+*.p12
+*.pem
+credentials.properties
+secrets.yml
+
+# 性能分析工具输出
+*.hprof
+*.jfr
+heapdump/
+thread_dump/
+
+# Maven发布相关
+release.properties
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+depoy*.sh
