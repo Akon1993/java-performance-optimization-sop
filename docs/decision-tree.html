@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java 性能优化决策树</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .main-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background: #e0e0e0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .step {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .step.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .step-title {
+            font-size: 1.8em;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .step-desc {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .option-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .option-card:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
+        }
+        
+        .option-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .option-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .option-desc {
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .result-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 20px;
+        }
+        
+        .result-title {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .solution-list {
+            list-style: none;
+        }
+        
+        .solution-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .solution-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .solution-list li::before {
+            content: "✓";
+            font-weight: bold;
+            color: #90EE90;
+        }
+        
+        .code-block {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: "Consolas", "Monaco", monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+        }
+        
+        .breadcrumb {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .breadcrumb-item {
+            color: #667eea;
+            font-size: 0.9em;
+        }
+        
+        .breadcrumb-item:not(:last-child)::after {
+            content: ">";
+            margin-left: 8px;
+            color: #999;
+        }
+        
+        .breadcrumb-item:last-child {
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .metric-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .metric-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .metric-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .priority-high { border-left: 4px solid #dc3545; }
+        .priority-medium { border-left: 4px solid #ffc107; }
+        .priority-low { border-left: 4px solid #28a745; }
+        
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        
+        .tag-quick { background: #d4edda; color: #155724; }
+        .tag-strategic { background: #fff3cd; color: #856404; }
+        
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.8em; }
+            .content { padding: 20px; }
+            .options { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Java 性能优化决策树</h1>
+            <p>按症状快速定位问题，获取优化方案</p>
+        </header>
+        
+        <div class="main-card">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress"></div>
+            </div>
+            
+            <div class="content">
+                <!-- 面包屑导航 -->
+                <div class="breadcrumb" id="breadcrumb">
+                    <span class="breadcrumb-item">开始</span>
+                </div>
+                
+                <!-- 步骤 0: 选择症状 -->
+                <div class="step active" id="step-0">
+                    <h2 class="step-title">请选择当前遇到的主要症状</h2>
+                    <p class="step-desc">选择最符合当前系统状况的选项，我们将引导你找到最优解决方案</p>
+                    
+                    <div class="options">
+                        <div class="option-card" onclick="goToStep('cpu')">
+                            <div class="option-icon">🖥️</div>
+                            <div class="option-title">CPU 使用率过高</div>
+                            <div class="option-desc">CPU 持续高负载，系统负载高</div>
+                        </div>
+                        <div class="option-card" onclick="goToStep('memory')">
+                            <div class="option-icon">💾</div>
+                            <div class="option-title">内存使用过高 / OOM</div>
+                            <div class="option-desc">内存持续增长，频繁 Full GC，甚至 OOM</div>
+                        </div>
+                        <div class="option-card" onclick="goToStep('response')">
+                            <div class="option-icon">⏱️</div>
+                            <div class="option-title">接口响应慢</div>
+                            <div class="option-desc">接口 P99 延迟高，用户体验差</div>
+                        </div>
+                        <div class="option-card" onclick="goToStep('gc')">
+                            <div class="option-icon">🗑️</div>
+                            <div class="option-title">GC 频繁 / 停顿长</div>
+                            <div class="option-desc">GC 次数多，停顿时间影响业务</div>
+                        </div>
+                        <div class="option-card" onclick="goToStep('db')">
+                            <div class="option-icon">🗄️</div>
+                            <div class="option-title">数据库慢</div>
+                            <div class="option-desc">SQL 执行慢，连接池耗尽</div>
+                        </div>
+                        <div class="option-card" onclick="goToStep('thread')">
+                            <div class="option-icon">🧵</div>
+                            <div class="option-title">线程/并发问题</div>
+                            <div class="option-desc">线程阻塞，死锁，并发度低</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- CPU 优化路径 -->
+                <div class="step" id="step-cpu">
+                    <h2 class="step-title">🖥️ CPU 优化</h2>
+                    <p class="step-desc">请使用 top 或 htop 观察 CPU 使用特征</p>
+                    
+                    <div class="options">
+                        <div class="option-card" onclick="showResult('cpu-user')">
+                            <div class="option-icon">📈</div>
+                            <div class="option-title">用户态 CPU 高</div>
+                            <div class="option-desc">us 列高，业务代码计算密集</div>
+                        </div>
+                        <div class="option-card" onclick="showResult('cpu-sys')">
+                            <div class="option-icon">⚙️</div>
+                            <div class="option-title">系统态 CPU 高</div>
+                            <div class="option-desc">sy 列高，系统调用频繁</div>
+                        </div>
+                        <div class="option-card" onclick="showResult('cpu-io')">
+                            <div class="option-icon">💽</div>
+                            <div class="option-title">IO 等待高</div>
+                            <div class="option-desc">wa 列高，IO 阻塞导致</div>
+                        </div>
+                        <div class="option-card" onclick="showResult('cpu-lock')">
+                            <div class="option-icon">🔒</div>
+                            <div class="option-title">多核不均衡</div>
+                            <div class="option-desc">某些核 100%，其他空闲，锁竞争</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 内存优化路径 -->
+                <div class="step" id="step-memory">
+                    <h2 class="step-title">💾 内存优化</h2>
+                    <p class="step-desc">请使用 jmap -heap &lt;pid&gt; 查看内存使用状况</p>
+                    
+                    <div class="options">
+                        <div class="option-card" onclick="showResult('memory-leak')">
+                            <div class="option-icon">🩸</div>
+                            <div class="option-title">持续增长不释放</div>
+                            <div class="option-desc">内存曲线单调上升，疑似内存泄漏</div>
+                        </div>
+                        <div class="option-card" onclick="showResult('memory-peak')">
+                            <div class="option-icon">📊</div>
+                            <div class="option-title">周期性峰值</div>
+                            <div class="option-desc">特定操作后内存突增，过后恢复</div>
+                        </div>
+                        <div class="option-card" onclick="showResult('memory-old')">
+                            <div class="option-icon">👴</div>
+                            <div class="option-title">老年代快速增长</div>
+                            <div class="option-desc">老年代占用高，频繁 Full GC</div>
+                        </div>
+                        <div class="option-card" onclick="showResult('memory-offheap')">
+                            <div class="option-icon">🎯</div>
+                            <div class="option-title">堆外内存高</div>
+                            <div class="option-desc">堆内存正常，RSS 远大于堆大小</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 响应时间优化路径 -->
+                <div class="step" id="step-response">
+                    <h2 class="step-title">⏱️ 响应时间优化</h2>
+                    <p class="step-desc">请使用 Arthas trace 或 SkyWalking 分析耗时分布</p>
+                    
+                    <div class="options">
+                        <div class="option-card" onclick="showResult('response-db')">
+                            <div class="option-icon">🗄️</div>
+                            <div class="option-title">数据库耗时高</div>
+                            <div class="option-desc">SQL 查询占接口耗时主要部分</div>
+                        </div>
+                        <div class="option-card" onclick="showResult('response-rpc')">
+                            <div class="option-icon">🌐</div>
+                            <div class="option-title">远程调用耗时高</div>
+                            <div class="option-desc">HTTP/RPC 调用耗时长</div>
+                        </div>
+                        <div class="option-card" onclick="showResult('response-compute')">
+                            <div class="option-icon">🧮</div>
+                            <div class="option-title">本地计算耗时高</div>
+                            <div class="option-desc">业务逻辑处理慢</div>
+                        </div>
+                        <div class="option-card" onclick="showResult('response-lock')">
+                            <div class="option-icon">⏳</div>
+                            <div class="option-title">锁等待耗时高</div>
+                            <div class="option-desc">线程等待锁释放时间长</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- GC 优化路径 -->
+                <div class="step" id="step-gc">
+                    <h2 class="step-title">🗑️ GC 优化</h2>
+                    <p class="step-desc">请分析 GC 日志，观察 GC 特征</p>
+                    
+                    <div class="options">
+                        <div class="option-card" onclick="showResult('gc-young')">
+                            <div class="option-icon">👶</div>
+                            <div class="option-title">Young GC 频繁</div>
+                            <div class="option-desc">每秒多次 Young GC，但停顿短</div>
+                        </div>
+                        <div class="option-card" onclick="showResult('gc-full')">
+                            <div class="option-icon">👴</div>
+                            <div class="option-title">Full GC 频繁</div>
+                            <div class="option-desc">频繁 Full GC，停顿时间长</div>
+                        </div>
+                        <div class="option-card" onclick="showResult('gc-pause')">
+                            <div class="option-icon">⏸️</div>
+                            <div class="option-title">GC 停顿过长</div>
+                            <div class="option-desc">单次 GC 停顿超过 100ms</div>
+                        </div>
+                        <div class="option-card" onclick="showResult('gc-release')">
+                            <div class="option-icon">🔄</div>
+                            <div class="option-title">GC 后内存不释放</div>
+                            <div class="option-desc">Full GC 后内存仍然高</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 数据库优化路径 -->
+                <div class="step" id="step-db">
+                    <h2 class="step-title">🗄️ 数据库优化</h2>
+                    <p class="step-desc">请检查慢查询日志和连接池监控</p>
+                    
+                    <div class="options">
+                        <div class="option-card" onclick="showResult('db-slow')">
+                            <div class="option-icon">🐌</div>
+                            <div class="option-title">慢查询</div>
+                            <div class="option-desc">特定 SQL 执行时间长</div>
+                        </div>
+                        <div class="option-card" onclick="showResult('db-conn')">
+                            <div class="option-icon">🔌</div>
+                            <div class="option-title">连接问题</div>
+                            <div class="option-desc">连接等待，连接池耗尽</div>
+                        </div>
+                        <div class="option-card" onclick="showResult('db-lock')">
+                            <div class="option-icon">🔐</div>
+                            <div class="option-title">锁竞争</div>
+                            <div class="option-desc">行锁等待，死锁</div>
+                        </div>
+                        <div class="option-card" onclick="showResult('db-replica')">
+                            <div class="option-icon">🔄</div>
+                            <div class="option-title">主从延迟</div>
+                            <div class="option-desc">读写分离场景下数据不一致</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 线程/并发优化路径 -->
+                <div class="step" id="step-thread">
+                    <h2 class="step-title">🧵 线程/并发优化</h2>
+                    <p class="step-desc">请使用 jstack 分析线程状态</p>
+                    
+                    <div class="options">
+                        <div class="option-card" onclick="showResult('thread-block')">
+                            <div class="option-icon">🚫</div>
+                            <div class="option-title">线程阻塞</div>
+                            <div class="option-desc">大量 BLOCKED 状态线程</div>
+                        </div>
+                        <div class="option-card" onclick="showResult('thread-deadlock')">
+                            <div class="option-icon">💀</div>
+                            <div class="option-title">死锁</div>
+                            <div class="option-desc">线程相互等待，系统卡死</div>
+                        </div>
+                        <div class="option-card" onclick="showResult('thread-pool')">
+                            <div class="option-icon">🏊</div>
+                            <div class="option-title">线程池满</div>
+                            <div class="option-desc">任务队列积压，拒绝执行</div>
+                        </div>
+                        <div class="option-card" onclick="showResult('thread-context')">
+                            <div class="option-icon">🔄</div>
+                            <div class="option-title">上下文切换高</div>
+                            <div class="option-desc">cs 列高，线程切换频繁</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 结果展示区域 -->
+                <div class="step" id="step-result">
+                    <div id="result-content">
+                        <!-- 动态插入结果 -->
+                    </div>
+                </div>
+                
+                <!-- 导航按钮 -->
+                <div class="nav-buttons">
+                    <button class="btn btn-secondary" onclick="goBack()" id="back-btn" style="display:none">
+                        ← 返回上一步
+                    </button>
+                    <button class="btn btn-primary" onclick="restart()">
+                        🔄 重新开始
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 快速参考 -->
+        <div class="main-card" style="margin-top: 30px;">
+            <div class="content">
+                <h2 style="margin-bottom: 20px;">📊 优化方案优先级矩阵</h2>
+                <div class="metric-cards">
+                    <div class="metric-card priority-high">
+                        <div class="metric-value">⚡</div>
+                        <div class="metric-label">
+                            <span class="tag tag-quick">快速收益</span><br>
+                            SQL添加索引<br>
+                            增大连接池<br>
+                            使用StringBuilder
+                        </div>
+                    </div>
+                    <div class="metric-card priority-medium">
+                        <div class="metric-value">🎯</div>
+                        <div class="metric-label">
+                            <span class="tag tag-strategic">战略投资</span><br>
+                            引入本地缓存<br>
+                            虚拟线程改造<br>
+                            GC算法调优
+                        </div>
+                    </div>
+                    <div class="metric-card priority-low">
+                        <div class="metric-value">🏗️</div>
+                        <div class="metric-label">
+                            架构重构<br>
+                            分布式缓存<br>
+                            异步化改造
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 决策路径历史
+        let history = [];
+        
+        // 结果数据
+        const results = {
+            'cpu-user': {
+                title: '用户态 CPU 高优化方案',
+                icon: '📈',
+                solutions: [
+                    {
+                        title: '1. 生成火焰图定位热点',
+                        desc: '使用 async-profiler 生成 CPU 火焰图',
+                        code: './profiler.sh -d 30 -f flame.html <pid>'
+                    },
+                    {
+                        title: '2. 优化热点算法',
+                        desc: '检查是否有 O(n²) 算法可优化为 O(n log n)',
+                        code: '// 示例：使用 HashMap 替代 List 查找\n- list.contains(key)  // O(n)\n+ map.containsKey(key) // O(1)'
+                    },
+                    {
+                        title: '3. 引入缓存',
+                        desc: '对热点数据使用 Caffeine 缓存',
+                        code: 'LoadingCache<String, Object> cache = Caffeine.newBuilder()\n    .maximumSize(1000)\n    .build(this::expensiveCompute);'
+                    },
+                    {
+                        title: '4. 并行计算',
+                        desc: '使用并行流或 CompletableFuture',
+                        code: 'list.parallelStream()\n    .map(this::process)\n    .collect(Collectors.toList());'
+                    }
+                ]
+            },
+            'cpu-lock': {
+                title: '锁竞争优化方案',
+                icon: '🔒',
+                solutions: [
+                    {
+                        title: '1. 缩小锁粒度',
+                        desc: '只锁定必要的代码块',
+                        code: 'synchronized (lock) {\n    // 只锁定需要保护的部分\n    counter++;\n}'
+                    },
+                    {
+                        title: '2. 使用读写锁',
+                        desc: '读多写少场景使用 ReentrantReadWriteLock',
+                        code: 'ReadWriteLock rwLock = new ReentrantReadWriteLock();\nrwLock.readLock().lock(); // 支持并发读'
+                    },
+                    {
+                        title: '3. 无锁数据结构',
+                        desc: '使用 ConcurrentHashMap, LongAdder',
+                        code: 'LongAdder counter = new LongAdder();\ncounter.increment(); // 无锁自增'
+                    },
+                    {
+                        title: '4. 分段锁',
+                        desc: '将大锁拆分为多个小锁',
+                        code: 'SegmentLock lock = new SegmentLock(16);\nlock.lock(key.hashCode());'
+                    }
+                ]
+            },
+            'memory-leak': {
+                title: '内存泄漏排查方案',
+                icon: '🩸',
+                solutions: [
+                    {
+                        title: '1. 生成堆转储文件',
+                        desc: '使用 jmap 或 JVM 参数自动生成',
+                        code: 'jmap -dump:format=b,file=heap.hprof <pid>\n# 或在 OOM 时自动生成\n-XX:+HeapDumpOnOutOfMemoryError'
+                    },
+                    {
+                        title: '2. 检查静态集合',
+                        desc: '静态 Map/List 是否只增不减',
+                        code: '// 使用 Guava Cache 替代，设置容量上限\nCache<String, Object> cache = CacheBuilder.newBuilder()\n    .maximumSize(1000)\n    .expireAfterWrite(10, TimeUnit.MINUTES)\n    .build();'
+                    },
+                    {
+                        title: '3. 检查 ThreadLocal',
+                        desc: '线程池 + ThreadLocal 组合易导致泄漏',
+                        code: 'try {\n    threadLocal.set(value);\n    // 业务逻辑\n} finally {\n    threadLocal.remove(); // 必须清理\n}'
+                    },
+                    {
+                        title: '4. 检查未关闭资源',
+                        desc: '数据库连接、文件句柄等',
+                        code: '// 使用 try-with-resources\ntry (Connection conn = dataSource.getConnection()) {\n    // 使用连接\n}'
+                    }
+                ]
+            },
+            'response-db': {
+                title: '数据库慢优化方案',
+                icon: '🗄️',
+                solutions: [
+                    {
+                        title: '1. 添加索引',
+                        desc: '为 WHERE、JOIN、ORDER BY 字段添加索引',
+                        code: 'CREATE INDEX idx_user_status ON users(status, created_at);'
+                    },
+                    {
+                        title: '2. SQL 优化',
+                        desc: '避免 SELECT *，使用覆盖索引',
+                        code: '-- 使用覆盖索引\nSELECT id, name FROM user WHERE status = 1;\n-- 确保 (status, id, name) 是联合索引'
+                    },
+                    {
+                        title: '3. 分页优化',
+                        desc: '深分页使用延迟关联',
+                        code: '-- 延迟关联优化深分页\nSELECT * FROM orders o\nJOIN (SELECT id FROM orders ORDER BY id LIMIT 100000, 10) tmp\nON o.id = tmp.id;'
+                    },
+                    {
+                        title: '4. 引入缓存',
+                        desc: '热点数据使用 Redis 缓存',
+                        code: '@Cacheable(value = "user", key = "#id+")\npublic User getUser(Long id) {\n    return userMapper.selectById(id);\n}'
+                    }
+                ]
+            },
+            'gc-pause': {
+                title: 'GC 停顿优化方案',
+                icon: '⏸️',
+                solutions: [
+                    {
+                        title: '1. 选择低延迟 GC',
+                        desc: 'JDK 17+ 推荐使用 ZGC',
+                        code: '# ZGC 配置（目标停顿 < 1ms）\n-XX:+UseZGC\n-XX:+ZGenerational  # JDK 21+ 分代 ZGC'
+                    },
+                    {
+                        title: '2. G1 调优',
+                        desc: '设置目标停顿时间',
+                        code: '# G1 配置（目标停顿 200ms）\n-XX:+UseG1GC\n-XX:MaxGCPauseMillis=200\n-XX:G1HeapRegionSize=16m'
+                    },
+                    {
+                        title: '3. 增大堆内存',
+                        desc: '内存充足可减少 GC 频率',
+                        code: '-Xms8g -Xmx8g  # 初始和最大堆内存一致'
+                    },
+                    {
+                        title: '4. 优化对象分配',
+                        desc: '减少大对象和长期存活对象',
+                        code: '// 使用对象池复用大对象\nObjectPool<byte[]> pool = new ObjectPool<>(() -> new byte[1024]);'
+                    }
+                ]
+            }
+        };
+        
+        // 通用结果模板（为未详细定义的类型）
+        function getGenericResult(type) {
+            const templates = {
+                'cpu-sys': {
+                    title: '系统态 CPU 高优化方案',
+                    icon: '⚙️',
+                    solutions: [
+                        { title: '1. 减少系统调用', desc: '批量操作替代单个操作', code: '// 批量读写替代循环单个读写' },
+                        { title: '2. 使用零拷贝', desc: 'FileChannel.transferTo 替代传统 IO', code: 'fileChannel.transferTo(0, size, socketChannel);' },
+                        { title: '3. 减少线程切换', desc: '调整线程池大小', code: '线程数 = CPU核数 + 1（CPU密集）或 2*CPU核数（IO密集）' }
+                    ]
+                },
+                'cpu-io': {
+                    title: 'IO 等待优化方案',
+                    icon: '💽',
+                    solutions: [
+                        { title: '1. 异步 IO', desc: '使用 NIO 或异步客户端', code: 'CompletableFuture.supplyAsync(() -> fetchData());' },
+                        { title: '2. 批量读写', desc: '减少 IO 次数', code: 'jdbcTemplate.batchUpdate(sql, batchArgs);' },
+                        { title: '3. 本地缓存', desc: '热点数据内存缓存', code: '@Cacheable("hotData")' }
+                    ]
+                },
+                'memory-peak': {
+                    title: '内存峰值优化方案',
+                    icon: '📊',
+                    solutions: [
+                        { title: '1. 流式处理', desc: '避免一次性加载大量数据', code: 'stream.forEach(this::process); // 而非 collect(toList())' },
+                        { title: '2. 对象池', desc: '复用大对象', code: 'ByteBufferPool.allocate(size);' },
+                        { title: '3. 分批处理', desc: '将大任务拆分为小批次', code: 'Lists.partition(list, 1000).forEach(this::processBatch);' }
+                    ]
+                },
+                'memory-old': {
+                    title: '老年代优化方案',
+                    icon: '👴',
+                    solutions: [
+                        { title: '1. 缩短对象生命周期', desc: '及时释放引用', code: 'data = null; // 帮助 GC' },
+                        { title: '2. 使用弱引用', desc: '缓存使用 WeakReference', code: 'WeakReference<Cache> weakCache = new WeakReference<>(cache);' },
+                        { title: '3. 增大新生代', desc: '让对象在新生代被回收', code: '-Xmn2g 或 -XX:NewRatio=2' }
+                    ]
+                },
+                'memory-offheap': {
+                    title: '堆外内存优化方案',
+                    icon: '🎯',
+                    solutions: [
+                        { title: '1. 检查 DirectBuffer', desc: 'NIO 使用的直接内存', code: '// 使用 try-with-resources 确保释放' },
+                        { title: '2. 限制堆外内存', desc: '设置最大堆外内存', code: '-XX:MaxDirectMemorySize=1g' },
+                        { title: '3. 检查 JNI', desc: ' native 代码内存分配', code: '使用 jemalloc 分析 native 内存' }
+                    ]
+                },
+                'response-rpc': {
+                    title: 'RPC 调用优化方案',
+                    icon: '🌐',
+                    solutions: [
+                        { title: '1. 连接池复用', desc: 'HTTP 连接池配置', code: 'HttpClient.newBuilder().connectionPool(pool);' },
+                        { title: '2. 异步调用', desc: 'CompletableFuture 并行调用', code: 'CompletableFuture.allOf(future1, future2).join();' },
+                        { title: '3. 熔断降级', desc: '使用 Sentinel 或 Hystrix', code: '@SentinelResource(fallback = "fallbackMethod")' }
+                    ]
+                },
+                'response-compute': {
+                    title: '计算优化方案',
+                    icon: '🧮',
+                    solutions: [
+                        { title: '1. 算法优化', desc: '降低时间复杂度', code: '// O(n²) -> O(n log n)' },
+                        { title: '2. 缓存结果', desc: '避免重复计算', code: '@Cacheable("calculationResult")' },
+                        { title: '3. 提前计算', desc: '异步预计算热点数据', code: '@Scheduled(fixedRate = 60000) public void precompute() {}' }
+                    ]
+                },
+                'response-lock': {
+                    title: '锁等待优化方案',
+                    icon: '⏳',
+                    solutions: [
+                        { title: '1. 锁粒度细化', desc: '分段锁减少竞争', code: 'ConcurrentHashMap 替代 synchronized Map' },
+                        { title: '2. 乐观锁', desc: 'CAS 替代悲观锁', code: 'AtomicInteger.compareAndSet(expected, update);' },
+                        { title: '3. 无锁队列', desc: '使用 Disruptor', code: 'RingBuffer<Event> ringBuffer = disruptor.getRingBuffer();' }
+                    ]
+                },
+                'gc-young': {
+                    title: 'Young GC 优化方案',
+                    icon: '👶',
+                    solutions: [
+                        { title: '1. 增大 Eden 区', desc: '减少 Young GC 频率', code: '-Xmn2g 或 -XX:NewRatio=2' },
+                        { title: '2. 避免大对象', desc: '大对象直接进入老年代', code: '// 分批处理，避免一次性创建大数组' },
+                        { title: '3. 对象池', desc: '复用对象减少分配', code: 'ObjectPool<T> pool = new ObjectPool<>(factory);' }
+                    ]
+                },
+                'gc-full': {
+                    title: 'Full GC 优化方案',
+                    icon: '👴',
+                    solutions: [
+                        { title: '1. 检查内存泄漏', desc: '使用 MAT 分析堆转储', code: 'jmap -dump:format=b,file=heap.hprof <pid>' },
+                        { title: '2. 增大老年代', desc: '调整堆内存比例', code: '-XX:NewRatio=3  # 老年代:新生代 = 3:1' },
+                        { title: '3. 禁用 System.gc', desc: '防止显式触发 Full GC', code: '-XX:+DisableExplicitGC' }
+                    ]
+                },
+                'gc-release': {
+                    title: '内存不释放优化方案',
+                    icon: '🔄',
+                    solutions: [
+                        { title: '1. 内存泄漏排查', desc: '查找强引用链', code: '使用 Eclipse MAT 分析 dominator tree' },
+                        { title: '2. 软引用缓存', desc: '允许 GC 回收缓存', code: 'SoftReference<Cache> softCache = new SoftReference<>(cache);' },
+                        { title: '3. 弱引用监听器', desc: '避免监听器累积', code: 'WeakReference<Listener> weakListener = new WeakReference<>(listener);' }
+                    ]
+                },
+                'db-conn': {
+                    title: '数据库连接优化方案',
+                    icon: '🔌',
+                    solutions: [
+                        { title: '1. 增大连接池', desc: 'HikariCP 配置', code: 'maximum-pool-size: 20\nminimum-idle: 5' },
+                        { title: '2. 检查连接泄漏', desc: '启用泄漏检测', code: 'leak-detection-threshold: 60000' },
+                        { title: '3. 连接预热', desc: '启动时初始化连接', code: 'dataSource.getConnection().close();' }
+                    ]
+                },
+                'db-lock': {
+                    title: '数据库锁优化方案',
+                    icon: '🔐',
+                    solutions: [
+                        { title: '1. 减少事务范围', desc: '缩短事务持有时间', code: '@Transactional(propagation = Propagation.REQUIRED)' },
+                        { title: '2. 调整隔离级别', desc: '读已提交替代可串行化', code: '@Transactional(isolation = Isolation.READ_COMMITTED)' },
+                        { title: '3. 乐观锁', desc: '使用版本号替代行锁', code: 'UPDATE table SET value = ?, version = version + 1 WHERE id = ? AND version = ?' }
+                    ]
+                },
+                'db-replica': {
+                    title: '主从延迟优化方案',
+                    icon: '🔄',
+                    solutions: [
+                        { title: '1. 强制走主库', desc: '关键查询读主库', code: '@Transactional(readOnly = false) // 强制主库' },
+                        { title: '2. 延迟敏感读', desc: '写后立即读使用主库', code: '// 写操作后的 1 秒内读主库' },
+                        { title: '3. 并行复制', desc: '启用 MySQL 并行复制', code: 'slave_parallel_workers = 8' }
+                    ]
+                },
+                'thread-block': {
+                    title: '线程阻塞优化方案',
+                    icon: '🚫',
+                    solutions: [
+                        { title: '1. 分析线程栈', desc: '找出阻塞原因', code: 'jstack <pid> | grep BLOCKED -A 5' },
+                        { title: '2. 锁优化', desc: '使用并发容器', code: 'ConcurrentHashMap 替代 HashTable' },
+                        { title: '3. 超时设置', desc: '避免无限等待', code: 'lock.tryLock(10, TimeUnit.SECONDS)' }
+                    ]
+                },
+                'thread-deadlock': {
+                    title: '死锁优化方案',
+                    icon: '💀',
+                    solutions: [
+                        { title: '1. 检测死锁', desc: '使用 jstack 检测', code: 'jstack -l <pid> | grep -A 50 "Found one Java-level deadlock"' },
+                        { title: '2. 统一加锁顺序', desc: '按固定顺序获取锁', code: '// 按 hashCode 顺序加锁' },
+                        { title: '3. 使用 tryLock', desc: '带超时的锁获取', code: 'if (lock.tryLock(1, TimeUnit.SECONDS)) { try { ... } finally { lock.unlock(); } }' }
+                    ]
+                },
+                'thread-pool': {
+                    title: '线程池优化方案',
+                    icon: '🏊',
+                    solutions: [
+                        { title: '1. 增大核心线程数', desc: '提高并发处理能力', code: 'ThreadPoolExecutor executor = new ThreadPoolExecutor(10, 50, 60L, TimeUnit.SECONDS, queue);' },
+                        { title: '2. 使用有界队列', desc: '防止无限堆积', code: 'new LinkedBlockingQueue<>(1000)' },
+                        { title: '3. 自定义拒绝策略', desc: '优雅处理过载', code: 'new ThreadPoolExecutor.CallerRunsPolicy()' }
+                    ]
+                },
+                'thread-context': {
+                    title: '上下文切换优化方案',
+                    icon: '🔄',
+                    solutions: [
+                        { title: '1. 减少线程数', desc: '避免过多线程竞争 CPU', code: '线程数 = CPU核数 * (1 + 等待时间/计算时间)' },
+                        { title: '2. 使用协程', desc: 'JDK 21 虚拟线程', code: 'Executors.newVirtualThreadPerTaskExecutor()' },
+                        { title: '3. 合并任务', desc: '减少任务数量', code: '// 小任务合并批量处理' }
+                    ]
+                }
+            };
+            
+            return templates[type] || {
+                title: '通用优化建议',
+                icon: '💡',
+                solutions: [
+                    { title: '1. 监控分析', desc: '使用 Arthas、SkyWalking 等工具定位问题' },
+                    { title: '2. 基线对比', desc: '记录优化前后的性能指标对比' },
+                    { title: '3. 渐进优化', desc: '一次只修改一个点，便于回滚' }
+                ]
+            };
+        }
+        
+        // 导航到指定步骤
+        function goToStep(stepId) {
+            // 隐藏当前步骤
+            document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+            
+            // 显示目标步骤
+            document.getElementById('step-' + stepId).classList.add('active');
+            
+            // 更新历史
+            history.push(stepId);
+            
+            // 更新面包屑和进度
+            updateBreadcrumb();
+            updateProgress();
+            
+            // 显示返回按钮
+            document.getElementById('back-btn').style.display = 'flex';
+        }
+        
+        // 显示结果
+        function showResult(resultId) {
+            const result = results[resultId] || getGenericResult(resultId);
+            
+            // 隐藏当前步骤
+            document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+            
+            // 生成结果 HTML
+            let solutionsHtml = result.solutions.map(s => `
+                <li style="margin-bottom: 20px;">
+                    <strong>${s.title}</strong><br>
+                    <span style="opacity: 0.9;">${s.desc}</span>
+                    ${s.code ? `<div class="code-block">${escapeHtml(s.code)}</div>` : ''}
+                </li>
+            `).join('');
+            
+            document.getElementById('result-content').innerHTML = `
+                <div class="result-card">
+                    <div class="result-title">
+                        <span>${result.icon}</span>
+                        ${result.title}
+                    </div>
+                    <ul class="solution-list">
+                        ${solutionsHtml}
+                    </ul>
+                </div>
+                <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+                    <h3 style="margin-bottom: 15px;">📚 相关文档</h3>
+                    <ul style="margin-left: 20px; line-height: 2;">
+                        <li><a href="00-性能优化SOP流程.md">性能优化SOP完整流程</a></li>
+                        <li><a href="01-代码层面优化.md">代码层面优化指南</a></li>
+                        <li><a href="02-JVM调优指南.md">JVM调优完整指南</a></li>
+                        <li><a href="03-数据库优化指南.md">数据库优化指南</a></li>
+                        <li><a href="04-并发优化指南.md">并发优化指南</a></li>
+                    </ul>
+                </div>
+            `;
+            
+            // 显示结果步骤
+            document.getElementById('step-result').classList.add('active');
+            
+            // 更新历史
+            history.push('result');
+            updateBreadcrumb();
+            updateProgress(100);
+        }
+        
+        // 返回上一步
+        function goBack() {
+            if (history.length <= 1) return;
+            
+            history.pop();
+            const prevStep = history[history.length - 1];
+            
+            document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+            document.getElementById('step-' + prevStep).classList.add('active');
+            
+            updateBreadcrumb();
+            updateProgress();
+            
+            if (history.length <= 1) {
+                document.getElementById('back-btn').style.display = 'none';
+            }
+        }
+        
+        // 重新开始
+        function restart() {
+            history = ['0'];
+            document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+            document.getElementById('step-0').classList.add('active');
+            document.getElementById('back-btn').style.display = 'none';
+            updateBreadcrumb();
+            updateProgress(0);
+        }
+        
+        // 更新面包屑
+        function updateBreadcrumb() {
+            const names = {
+                '0': '开始',
+                'cpu': 'CPU 优化',
+                'memory': '内存优化',
+                'response': '响应时间优化',
+                'gc': 'GC 优化',
+                'db': '数据库优化',
+                'thread': '线程优化',
+                'result': '优化方案'
+            };
+            
+            const html = history.map((h, i) => {
+                const isLast = i === history.length - 1;
+                return `<span class="breadcrumb-item">${names[h] || h}</span>`;
+            }).join('');
+            
+            document.getElementById('breadcrumb').innerHTML = html;
+        }
+        
+        // 更新进度条
+        function updateProgress(percent) {
+            if (percent === undefined) {
+                percent = Math.min(history.length * 20, 80);
+            }
+            document.getElementById('progress').style.width = percent + '%';
+        }
+        
+        // HTML 转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // 初始化
+        history = ['0'];
+    </script>
+</body>
+</html>

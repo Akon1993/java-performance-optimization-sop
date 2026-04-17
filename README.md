@@ -154,12 +154,13 @@ chmod +x scripts/performance-check.sh
 
 | 文档 | 说明 | 对应代码包 |
 |------|------|-----------|
-| [00-performance-sop-workflow.md](docs/00-performance-sop-workflow.md) | **性能优化SOP完整流程** | - |
-| [01-code-optimization.md](docs/01-code-optimization.md) | 代码层面优化指南 | `com.perf.sop.code` |
-| [02-jvm-tuning.md](docs/02-jvm-tuning.md) | JVM调优完整指南 | `com.perf.sop.jvm` |
-| [03-database-optimization.md](docs/03-database-optimization.md) | 数据库优化指南 | `com.perf.sop.database` |
-| [04-concurrency-optimization.md](docs/04-concurrency-optimization.md) | 并发优化指南 | `com.perf.sop.concurrency` |
-| [05-cache-strategy.md](docs/05-cache-strategy.md) | 缓存策略指南 | `com.perf.sop.cache` |
+| [00-性能优化SOP流程.md](docs/00-性能优化SOP流程.md) | **性能优化SOP完整流程** | - |
+| [01-代码层面优化.md](docs/01-代码层面优化.md) | 代码层面优化指南 | `com.perf.sop.code` |
+| [02-JVM调优指南.md](docs/02-JVM调优指南.md) | JVM调优完整指南 | `com.perf.sop.jvm` |
+| [03-数据库优化指南.md](docs/03-数据库优化指南.md) | 数据库优化指南 | `com.perf.sop.database` |
+| [04-并发优化指南.md](docs/04-并发优化指南.md) | 并发优化指南 | `com.perf.sop.concurrency` |
+| [05-缓存策略指南.md](docs/05-缓存策略指南.md) | 缓存策略指南 | `com.perf.sop.cache` |
+| **[09-性能优化决策树.md](docs/09-性能优化决策树.md)** | **按症状快速决策指南** | - |
 
 ## 🧪 基准测试
 
